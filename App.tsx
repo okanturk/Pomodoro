@@ -1,10 +1,12 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import TimerDisplay from './components/TimerDisplay';
 import ModeSelector from './components/ModeSelector';
 import TimerControls from './components/TimerControls';
-import { Mode, Settings } from './types';
+import TaskList from './components/TaskList';
+import SettingsPanel from './components/SettingsPanel';
+import { Mode, Settings, Task } from './types';
 import { DEFAULT_SETTINGS, MODE_CONFIG } from './constants';
+import { SOUNDS } from './sounds';
 
 const App: React.FC = () => {
   const [settings] = useState<Settings>(DEFAULT_SETTINGS);
@@ -12,12 +14,45 @@ const App: React.FC = () => {
   const [isActive, setIsActive] = useState<boolean>(false);
   const [secondsLeft, setSecondsLeft] = useState<number>(settings[mode] * 60);
   const [pomodoroCount, setPomodoroCount] = useState<number>(0);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  
+  // Sound settings state
+  const [volume, setVolume] = useState<number>(() => {
+    const savedVolume = localStorage.getItem('pomodoro-volume');
+    return savedVolume ? parseFloat(savedVolume) : 0.5;
+  });
+  const [selectedSound, setSelectedSound] = useState<string>(() => {
+    return localStorage.getItem('pomodoro-sound') || SOUNDS[0].id;
+  });
 
   const alarmSoundRef = useRef<HTMLAudioElement | null>(null);
 
+  // Task state management
+  const [tasks, setTasks] = useState<Task[]>(() => {
+    try {
+      const storedTasks = localStorage.getItem('pomodoro-tasks');
+      return storedTasks ? JSON.parse(storedTasks) : [];
+    } catch (error) {
+      console.error("Could not parse tasks from localStorage", error);
+      return [];
+    }
+  });
+  
+  // Persist tasks and settings to localStorage
   useEffect(() => {
-    alarmSoundRef.current = new Audio('https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg');
-  }, []);
+    localStorage.setItem('pomodoro-tasks', JSON.stringify(tasks));
+  }, [tasks]);
+
+  useEffect(() => {
+    localStorage.setItem('pomodoro-volume', String(volume));
+    if (alarmSoundRef.current) {
+      alarmSoundRef.current.volume = volume;
+    }
+  }, [volume]);
+  
+  useEffect(() => {
+    localStorage.setItem('pomodoro-sound', selectedSound);
+  }, [selectedSound]);
 
   const selectMode = useCallback((newMode: Mode) => {
     setIsActive(false);
@@ -26,20 +61,16 @@ const App: React.FC = () => {
   }, [settings]);
 
   useEffect(() => {
-    const totalDuration = settings[mode] * 60;
     document.title = `${String(Math.floor(secondsLeft / 60)).padStart(2, '0')}:${String(secondsLeft % 60).padStart(2, '0')} - ${MODE_CONFIG[mode].label}`;
     
-    // Update body background color based on mode
+    // Smooth background transition effect
     const modeColorClass = MODE_CONFIG[mode].color;
-    document.body.className = `antialiased bg-gray-900 transition-colors duration-500`; // Reset and set base
-    
-    // Use a trick to smoothly transition background color
+    document.body.className = `antialiased bg-gray-900 transition-colors duration-500`;
     const transitioner = document.createElement('div');
     transitioner.className = `fixed inset-0 -z-10 transition-opacity duration-1000 ${modeColorClass} opacity-0`;
     document.body.appendChild(transitioner);
     setTimeout(() => transitioner.classList.add('opacity-30'), 50);
     setTimeout(() => document.body.removeChild(transitioner), 1050);
-
 
   }, [secondsLeft, mode, settings]);
 
@@ -53,12 +84,10 @@ const App: React.FC = () => {
             return prevSeconds - 1;
           }
 
-          // Timer finished
           if (alarmSoundRef.current) {
             alarmSoundRef.current.play();
           }
 
-          // Automatic mode switching
           if (mode === Mode.Pomodoro) {
             const newPomodoroCount = pomodoroCount + 1;
             setPomodoroCount(newPomodoroCount);
@@ -71,32 +100,48 @@ const App: React.FC = () => {
             selectMode(Mode.Pomodoro);
           }
           
-          return 0; // Fallback, but selectMode should handle it
+          return 0;
         });
       }, 1000);
     }
 
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
+    return () => clearInterval(interval);
   }, [isActive, mode, pomodoroCount, selectMode, settings, alarmSoundRef]);
 
-  const handleStartPause = () => {
-    setIsActive((prev) => !prev);
-  };
-
+  const handleStartPause = () => setIsActive((prev) => !prev);
   const handleReset = () => {
     setIsActive(false);
     setSecondsLeft(settings[mode] * 60);
   };
+  const handleToggleSettings = () => setIsSettingsOpen(prev => !prev);
+
+  // Settings handlers
+  const handleTestSound = () => {
+    if (alarmSoundRef.current) {
+      alarmSoundRef.current.play();
+    }
+  };
+
+  // Task handlers
+  const handleAddTask = (text: string) => {
+    if (text.trim() === '') return;
+    const newTask: Task = { id: crypto.randomUUID(), text, completed: false };
+    setTasks(prevTasks => [...prevTasks, newTask]);
+  };
+  const handleToggleTask = (id: string) => {
+    setTasks(prevTasks => prevTasks.map(task => task.id === id ? { ...task, completed: !task.completed } : task));
+  };
+  const handleDeleteTask = (id: string) => {
+    setTasks(prevTasks => prevTasks.filter(task => task.id !== id));
+  };
   
   const totalSecondsForMode = settings[mode] * 60;
+  const currentSoundUrl = SOUNDS.find(s => s.id === selectedSound)?.url || SOUNDS[0].url;
 
   return (
     <div className={`min-h-screen w-full flex flex-col items-center justify-center p-4 text-white bg-gray-900`}>
-      <main className="flex flex-col items-center justify-center space-y-8 md:space-y-12 w-full max-w-lg">
+       <audio ref={alarmSoundRef} src={currentSoundUrl} preload="auto" />
+      <main className="flex flex-col items-center justify-center space-y-6 md:space-y-8 w-full max-w-lg">
         <ModeSelector currentMode={mode} onSelectMode={selectMode} />
         
         <TimerDisplay
@@ -111,7 +156,19 @@ const App: React.FC = () => {
           currentMode={mode}
           onStartPause={handleStartPause}
           onReset={handleReset}
+          onSettingsToggle={handleToggleSettings}
         />
+
+        {isSettingsOpen && (
+            <SettingsPanel
+                sounds={SOUNDS}
+                selectedSound={selectedSound}
+                volume={volume}
+                onSoundChange={setSelectedSound}
+                onVolumeChange={setVolume}
+                onTestSound={handleTestSound}
+            />
+        )}
         
         <div className="text-center">
             <p className="text-gray-400 text-lg">
@@ -121,6 +178,13 @@ const App: React.FC = () => {
                 Finish {settings.longBreakInterval} sessions for a long break.
             </p>
         </div>
+
+        <TaskList
+          tasks={tasks}
+          onAddTask={handleAddTask}
+          onToggleTask={handleToggleTask}
+          onDeleteTask={handleDeleteTask}
+        />
       </main>
     </div>
   );

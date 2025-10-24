@@ -1,4 +1,3 @@
-
 export enum Mode {
   Pomodoro = 'pomodoro',
   ShortBreak = 'shortBreak',
@@ -11,3 +10,12 @@ export interface Settings {
   [Mode.LongBreak]: number;
   longBreakInterval: number;
 }
+
+export interface Task {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
+export type FilterType = 'all' | 'active' | 'completed';
+export type SortType = 'date' | 'alphabetical';
