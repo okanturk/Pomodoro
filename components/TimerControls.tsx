@@ -1,0 +1,55 @@
+
+import React from 'react';
+import { Mode } from '../types';
+import { MODE_CONFIG } from '../constants';
+
+interface TimerControlsProps {
+  isActive: boolean;
+  isPaused: boolean;
+  currentMode: Mode;
+  onStartPause: () => void;
+  onReset: () => void;
+}
+
+const PlayIcon: React.FC<{className: string}> = ({className}) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+        <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.647c1.295.742 1.295 2.545 0 3.286L7.279 20.99c-1.25.717-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" />
+    </svg>
+);
+
+const PauseIcon: React.FC<{className: string}> = ({className}) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+        <path fillRule="evenodd" d="M6.75 5.25a.75.75 0 0 1 .75.75v12a.75.75 0 0 1-1.5 0V6a.75.75 0 0 1 .75-.75Zm9 0a.75.75 0 0 1 .75.75v12a.75.75 0 0 1-1.5 0V6a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" />
+    </svg>
+);
+
+const ResetIcon: React.FC<{className: string}> = ({className}) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 11.667 0 8.25 8.25 0 0 0 0-11.667l-3.182-3.182m0 0-3.182 3.182m3.182-3.182L12 12.012" />
+    </svg>
+);
+
+
+const TimerControls: React.FC<TimerControlsProps> = ({ isActive, isPaused, currentMode, onStartPause, onReset }) => {
+  const { color, accentColor } = MODE_CONFIG[currentMode];
+
+  return (
+    <div className="flex items-center space-x-6">
+      <button
+        onClick={onReset}
+        className="text-gray-400 hover:text-white transition-colors duration-300"
+        aria-label="Reset Timer"
+      >
+        <ResetIcon className="w-8 h-8" />
+      </button>
+      <button
+        onClick={onStartPause}
+        className={`w-28 h-28 md:w-32 md:h-32 rounded-full ${color} text-white text-2xl font-bold uppercase tracking-wider flex items-center justify-center shadow-lg transform hover:scale-105 transition-transform duration-300 focus:outline-none focus:ring-4 ${accentColor.replace('text-', 'ring-')} ring-opacity-50`}
+      >
+        {isActive ? <PauseIcon className="w-12 h-12" /> : <PlayIcon className="w-12 h-12" />}
+      </button>
+    </div>
+  );
+};
+
+export default TimerControls;
