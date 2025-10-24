@@ -108,12 +108,46 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [isActive, mode, pomodoroCount, selectMode, settings, alarmSoundRef]);
 
-  const handleStartPause = () => setIsActive((prev) => !prev);
-  const handleReset = () => {
+  const handleStartPause = useCallback(() => setIsActive((prev) => !prev), []);
+  
+  const handleReset = useCallback(() => {
     setIsActive(false);
     setSecondsLeft(settings[mode] * 60);
-  };
-  const handleToggleSettings = () => setIsSettingsOpen(prev => !prev);
+  }, [settings, mode]);
+
+  const handleToggleSettings = useCallback(() => setIsSettingsOpen(prev => !prev), []);
+
+  // Keyboard shortcuts effect
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts if user is typing in an input
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
+      }
+      
+      switch(e.key.toLowerCase()) {
+        case ' ':
+          e.preventDefault(); // prevent page scroll
+          handleStartPause();
+          break;
+        case 'r':
+          handleReset();
+          break;
+        case 's':
+          handleToggleSettings();
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleStartPause, handleReset, handleToggleSettings]);
 
   // Settings handlers
   const handleTestSound = () => {
