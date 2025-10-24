@@ -123,9 +123,9 @@ const App: React.FC = () => {
   };
 
   // Task handlers
-  const handleAddTask = (text: string) => {
+  const handleAddTask = (text: string, estimatedTime?: number) => {
     if (text.trim() === '') return;
-    const newTask: Task = { id: crypto.randomUUID(), text, completed: false };
+    const newTask: Task = { id: crypto.randomUUID(), text, completed: false, estimatedTime };
     setTasks(prevTasks => [...prevTasks, newTask]);
   };
   const handleToggleTask = (id: string) => {

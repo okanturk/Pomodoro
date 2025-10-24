@@ -3,7 +3,7 @@ import { Task, FilterType, SortType } from '../types';
 
 interface TaskListProps {
   tasks: Task[];
-  onAddTask: (text: string) => void;
+  onAddTask: (text: string, estimatedTime?: number) => void;
   onToggleTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
 }
@@ -16,13 +16,23 @@ const TrashIcon: React.FC<{className: string}> = ({className}) => (
 
 const TaskList: React.FC<TaskListProps> = ({ tasks, onAddTask, onToggleTask, onDeleteTask }) => {
   const [newTaskText, setNewTaskText] = useState('');
+  const [timeEstimate, setTimeEstimate] = useState('');
   const [filter, setFilter] = useState<FilterType>('all');
   const [sort, setSort] = useState<SortType>('date');
+  const [toggledTaskId, setToggledTaskId] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onAddTask(newTaskText);
+    const estimate = timeEstimate ? parseInt(timeEstimate, 10) : undefined;
+    onAddTask(newTaskText, estimate);
     setNewTaskText('');
+    setTimeEstimate('');
+  };
+
+  const handleToggle = (id: string) => {
+    onToggleTask(id);
+    setToggledTaskId(id);
+    setTimeout(() => setToggledTaskId(null), 500); // Duration matches CSS animation
   };
   
   const displayedTasks = useMemo(() => {
@@ -34,6 +44,14 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onAddTask, onToggleTask, onD
 
     if (sort === 'alphabetical') {
       return [...filteredTasks].sort((a, b) => a.text.localeCompare(b.text));
+    }
+    
+    if (sort === 'time') {
+      return [...filteredTasks].sort((a, b) => {
+        const timeA = a.estimatedTime ?? Infinity;
+        const timeB = b.estimatedTime ?? Infinity;
+        return timeA - timeB;
+      });
     }
 
     return filteredTasks; // Default 'date' sort is the creation order
@@ -52,6 +70,15 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onAddTask, onToggleTask, onD
           placeholder="Add a new task..."
           className="flex-grow bg-gray-700/50 border border-gray-600 rounded-md px-3 py-2 text-white placeholder-gray-400 focus:ring-2 focus:ring-red-400 focus:outline-none transition-shadow"
           aria-label="New task input"
+        />
+        <input
+          type="number"
+          min="1"
+          value={timeEstimate}
+          onChange={(e) => setTimeEstimate(e.target.value)}
+          placeholder="Mins"
+          className="w-20 bg-gray-700/50 border border-gray-600 rounded-md px-3 py-2 text-white placeholder-gray-400 focus:ring-2 focus:ring-red-400 focus:outline-none transition-shadow"
+          aria-label="Estimated time in minutes"
         />
         <button
           type="submit"
@@ -86,6 +113,7 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onAddTask, onToggleTask, onD
           >
             <option value="date">Sort by Date</option>
             <option value="alphabetical">Sort Alphabetically</option>
+            <option value="time">Sort by Time</option>
           </select>
           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
@@ -96,11 +124,11 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onAddTask, onToggleTask, onD
       <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
         {displayedTasks.length > 0 ? (
           displayedTasks.map(task => (
-            <div key={task.id} className="flex items-center bg-gray-700/50 p-3 rounded-md group">
+            <div key={task.id} className={`flex items-center p-3 rounded-md group ${toggledTaskId === task.id ? 'animate-toggle' : 'bg-gray-700/50'}`}>
               <input
                 type="checkbox"
                 checked={task.completed}
-                onChange={() => onToggleTask(task.id)}
+                onChange={() => handleToggle(task.id)}
                 className="form-checkbox h-5 w-5 rounded text-red-400 bg-gray-800 border-gray-600 focus:ring-red-400 focus:ring-offset-gray-700/50 cursor-pointer"
                 aria-labelledby={`task-text-${task.id}`}
               />
@@ -110,6 +138,11 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onAddTask, onToggleTask, onD
               >
                 {task.text}
               </span>
+              {task.estimatedTime && (
+                <span className="text-sm text-gray-400 ml-3 whitespace-nowrap">
+                  {task.estimatedTime} min
+                </span>
+              )}
               <button
                 onClick={() => onDeleteTask(task.id)}
                 className="ml-3 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"

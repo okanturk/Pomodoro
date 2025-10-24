@@ -15,7 +15,8 @@ export interface Task {
   id: string;
   text: string;
   completed: boolean;
+  estimatedTime?: number;
 }
 
 export type FilterType = 'all' | 'active' | 'completed';
-export type SortType = 'date' | 'alphabetical';
+export type SortType = 'date' | 'alphabetical' | 'time';
