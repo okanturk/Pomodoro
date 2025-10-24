@@ -218,6 +218,9 @@ const App: React.FC = () => {
           onAddTask={handleAddTask}
           onToggleTask={handleToggleTask}
           onDeleteTask={handleDeleteTask}
+          currentMode={mode}
+          secondsLeft={secondsLeft}
+          totalSecondsForMode={totalSecondsForMode}
         />
       </main>
     </div>

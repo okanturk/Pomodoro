@@ -1,11 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import { Task, FilterType, SortType } from '../types';
+import { Task, FilterType, SortType, Mode } from '../types';
 
 interface TaskListProps {
   tasks: Task[];
   onAddTask: (text: string, estimatedTime?: number) => void;
   onToggleTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
+  currentMode: Mode;
+  secondsLeft: number;
+  totalSecondsForMode: number;
 }
 
 const TrashIcon: React.FC<{className: string}> = ({className}) => (
@@ -14,7 +17,7 @@ const TrashIcon: React.FC<{className: string}> = ({className}) => (
     </svg>
 );
 
-const TaskList: React.FC<TaskListProps> = ({ tasks, onAddTask, onToggleTask, onDeleteTask }) => {
+const TaskList: React.FC<TaskListProps> = ({ tasks, onAddTask, onToggleTask, onDeleteTask, currentMode, secondsLeft, totalSecondsForMode }) => {
   const [newTaskText, setNewTaskText] = useState('');
   const [timeEstimate, setTimeEstimate] = useState('');
   const [filter, setFilter] = useState<FilterType>('all');
@@ -56,7 +59,6 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onAddTask, onToggleTask, onD
 
     return filteredTasks; // Default 'date' sort is the creation order
   }, [tasks, filter, sort]);
-
 
   return (
     <div className="w-full max-w-lg bg-gray-800/50 rounded-lg p-4 md:p-6">
@@ -123,35 +125,55 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onAddTask, onToggleTask, onD
       
       <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
         {displayedTasks.length > 0 ? (
-          displayedTasks.map(task => (
-            <div key={task.id} className={`flex items-center p-3 rounded-md group ${toggledTaskId === task.id ? 'animate-toggle' : 'bg-gray-700/50'}`}>
-              <input
-                type="checkbox"
-                checked={task.completed}
-                onChange={() => handleToggle(task.id)}
-                className="form-checkbox h-5 w-5 rounded text-red-400 bg-gray-800 border-gray-600 focus:ring-red-400 focus:ring-offset-gray-700/50 cursor-pointer"
-                aria-labelledby={`task-text-${task.id}`}
-              />
-              <span 
-                id={`task-text-${task.id}`}
-                className={`ml-3 flex-grow ${task.completed ? 'line-through text-gray-500' : 'text-gray-200'} transition-colors`}
-              >
-                {task.text}
-              </span>
-              {task.estimatedTime && (
-                <span className="text-sm text-gray-400 ml-3 whitespace-nowrap">
-                  {task.estimatedTime} min
-                </span>
-              )}
-              <button
-                onClick={() => onDeleteTask(task.id)}
-                className="ml-3 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                aria-label={`Delete task: ${task.text}`}
-              >
-                <TrashIcon className="w-5 h-5" />
-              </button>
-            </div>
-          ))
+          displayedTasks.map(task => {
+            const showProgressBar = currentMode === Mode.Pomodoro && task.estimatedTime && !task.completed;
+            let progress = 0;
+            if (showProgressBar && task.estimatedTime) {
+                const elapsedSeconds = totalSecondsForMode - secondsLeft;
+                const taskTotalSeconds = task.estimatedTime * 60;
+                progress = Math.min(100, (elapsedSeconds / taskTotalSeconds) * 100);
+            }
+
+            return (
+              <div key={task.id} className={`p-3 rounded-md group transition-colors ${toggledTaskId === task.id ? 'animate-toggle' : 'bg-gray-700/50'}`}>
+                <div className="flex items-center">
+                    <input
+                        type="checkbox"
+                        checked={task.completed}
+                        onChange={() => handleToggle(task.id)}
+                        className="form-checkbox h-5 w-5 rounded text-red-400 bg-gray-800 border-gray-600 focus:ring-red-400 focus:ring-offset-gray-700/50 cursor-pointer"
+                        aria-labelledby={`task-text-${task.id}`}
+                    />
+                    <span 
+                        id={`task-text-${task.id}`}
+                        className={`ml-3 flex-grow ${task.completed ? 'line-through text-gray-500' : 'text-gray-200'} transition-colors`}
+                    >
+                        {task.text}
+                    </span>
+                    {task.estimatedTime && (
+                        <span className="text-sm text-gray-400 ml-3 whitespace-nowrap">
+                        {task.estimatedTime} min
+                        </span>
+                    )}
+                    <button
+                        onClick={() => onDeleteTask(task.id)}
+                        className="ml-3 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                        aria-label={`Delete task: ${task.text}`}
+                    >
+                        <TrashIcon className="w-5 h-5" />
+                    </button>
+                </div>
+                {showProgressBar && (
+                    <div className="mt-2 w-full bg-gray-600 rounded-full h-1.5" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
+                        <div 
+                            className="bg-red-400 h-1.5 rounded-full transition-all duration-500 ease-linear" 
+                            style={{ width: `${progress}%` }}
+                        ></div>
+                    </div>
+                )}
+              </div>
+            )
+          })
         ) : (
           <p className="text-gray-500 text-center py-4">
             {tasks.length > 0 ? 'No tasks match your current filter.' : 'No tasks yet. Add one to get started!'}
